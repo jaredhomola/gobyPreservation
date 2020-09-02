@@ -30,12 +30,10 @@ inset <-  ggplotGrob(
   ggmap(
     get_googlemap(
       center = c(lon = -85.82, lat = 43.773),
-      zoom = 7,
+      zoom = 5,
       scale = 2,
       maptype = "satellite",
-      color = "color"
-    )
-  ) +
+      color = "color")) +
     theme(
       axis.line = element_blank(),
       axis.text.y = element_blank(),
@@ -43,19 +41,23 @@ inset <-  ggplotGrob(
       axis.text.x = element_blank(),
       axis.title.x = element_blank(),
       axis.title.y = element_blank(),
-      plot.margin = unit(c(0, 0,-1,-1), 'lines')
-    ) +
-  geom_rect(
-    aes(
-      xmin = -86.5,
-      xmax = -86.0,
-      ymin = 43.1,
-      ymax = 43.4
-    ),
-    color = "red",
-    fill = NA,
-    size = 2
-  ) 
+      plot.margin = unit(c(0, 0,-1,-1), 'lines')) +
+    geom_point(
+      aes(x = -86.2, y = 43.25),
+      shape = 18,
+      color = "red",
+      size = 4)
+  #geom_rect(
+  #  aes(
+  #    xmin = -86.5,
+  #    xmax = -86.0,
+  #    ymin = 43.1,
+  #    ymax = 43.4
+  #  ),
+  #  color = "red",
+  #  fill = NA,
+  #  size = 2
+  #) 
 )
 
 #### Create site map
@@ -74,7 +76,7 @@ siteMap <-
     geom_label_repel(
       aes(lon, lat, label = site),
       data = samplingSites.tib,
-      size = 4,
+      size = 5,
       point.padding = 0.3,
       segment.color = 'grey50'
     ) +
@@ -93,7 +95,8 @@ siteMap <-
     ) +
   xlab("Longitude") +
   ylab("Latitude") +
-  inset(grob = inset, xmin = -86.47, xmax = -86.25, ymin = 43.3, ymax = 43.41)
+  inset(grob = inset, xmin = -86.47, xmax = -86.25, ymin = 43.3, ymax = 43.41) +
+  theme_bw(base_size = 14)
 
-ggsave("siteMap.png")
+ggsave("siteMap.png", units = "in", dpi = 300, width = 7, height = 7)
   
