@@ -8,7 +8,10 @@ library(ggrepel)
 library(raster)
 library(abind)
 library(GeometricMorphometricsMix)
+library(gobyPreservation)
 library(tidyverse)
+data("gobyPreservation")
+
 
 ## Establish factors
 pop = as.factor(c(rep(c("CEC"), 1620), rep(c("MSK"), 1620)))
@@ -70,9 +73,6 @@ ggplot(PCA.dorsal.df, aes(x = PC1, y = PC2, color = as.factor(day))) +
   theme(legend.position = "none") +
   NULL
 
-#ggsave("./Ethanol Experiment/plots/pcaAll-dorsal.pdf",
-#     width = 8, height = 6, units = "in")
-
 ## PCA plot by population - centroids only
 ggplot(PCA.dorsal.df, aes(x = PC1, y = PC2)) +
   geom_point(data = centroids.dorsal.12, size = 5, aes(shape = pop)) +
@@ -82,9 +82,6 @@ ggplot(PCA.dorsal.df, aes(x = PC1, y = PC2)) +
   theme_classic(base_size = 18) +
   theme(legend.position = "none") +
   NULL
-
-#ggsave("./Ethanol Experiment/plots/pcaCentroids-dorsal.pdf",
-#        width = 8, height = 6, units = "in")
 
 ## Incremental centroid distance changes
 CEC.cents <- centroids.dorsal.12[1:18,]
@@ -187,9 +184,20 @@ for(z in (1:nrow(varPairs))) {
   results$time1[z] <- varPairs$Column1[z]
   results$time2[z] <- varPairs$Column2[z]
 }
-
 results.CEC <- results
+
+## Comparisons within MSK and CEC
+for(z in (1:nrow(varPairs))) {
+  RM.out <- gobyRM("MSK", "MSK", varPairs$Column1[z], varPairs$Column2[z])
+  results$EuclideanD.MSK[z] <- RM.out %>% as.data.frame %>% .[1,]
+  results$HotellingT2.MSK[z] <- RM.out %>% as.data.frame %>% .[2,]
+  results$Fstat.MSK[z] <- RM.out %>% as.data.frame %>% .[3,]
+  results$p_val.MSK[z] <- RM.out %>% as.data.frame %>% .[4,]
+  results$time1[z] <- varPairs$Column1[z]
+  results$time2[z] <- varPairs$Column2[z]
+}
 results.MSK <- results
+
 results.CEC.MSK <- left_join(results.CEC, results.MSK) %>% 
   distinct(time1, .keep_all = TRUE) %>% 
   mutate(CEC.adj.p.value = p.adjust(p_val.CEC, method='fdr', n = nrow(.))) %>%
@@ -248,25 +256,25 @@ Zscores <- stats1 %>% pivot_wider(names_from = Column1, values_from = Z)
 
 ##### Lateral landmarks #####
 ## Read data from fully appended tps file (created in TPSutil)
-dat.side <- dat.side[c(1:17),,]
+dat.lateral <- dat.lateral[c(1:17),,]
 
 ## Perform Generalized Procrustes transformation
-proc.side <- gpagen(dat.side)
-gdf.side <- geomorph.data.frame(proc.side,
-                                  shape = proc.side$coords) 
+proc.lateral <- gpagen(dat.lateral)
+gdf.lateral <- geomorph.data.frame(proc.lateral,
+                                  shape = proc.lateral$coords) 
 fit.simple.allo <- procD.lm(coords ~ log(Csize), 
-                            data = gdf.side, print.progress = FALSE)
+                            data = gdf.lateral, print.progress = FALSE)
 shape.resid <- arrayspecs(fit.simple.allo$residuals,
-                          p=dim(gdf.side$coords)[1], k=dim(gdf.side$coords)[2]) # allometry-adjusted residuals
-adj.shape <- shape.resid + array(mshape(gdf.side$coords), dim(shape.resid)) # Size adjusted shapes
-proc.side <- gpagen(adj.shape)
+                          p=dim(gdf.lateral$coords)[1], k=dim(gdf.lateral$coords)[2]) # allometry-adjusted residuals
+adj.shape <- shape.resid + array(mshape(gdf.lateral$coords), dim(shape.resid)) # Size adjusted shapes
+proc.lateral <- gpagen(adj.shape)
 
 ## Check for outliers
-plotOutliers(proc.side$coords)
+plotOutliers(proc.lateral$coords)
 
 ### Principal components analysis ###
 ## Set up data frame and perform analysis
-side.df <- data.frame(two.d.array(proc.side$coords)) %>% 
+lateral.df <- data.frame(two.d.array(proc.lateral$coords)) %>% 
   mutate(pop = pop, 
          ind = ind, 
          rep = rep, 
@@ -274,50 +282,44 @@ side.df <- data.frame(two.d.array(proc.side$coords)) %>%
   group_by(pop, ind, day) %>% 
   summarize_if(is.numeric, funs(mean))
 
-pcaObj <- prcomp(side.df[,4:15])
-pcaPoints.side <- pcaObj$x
+pcaObj <- prcomp(lateral.df[,4:15])
+pcaPoints.lateral <- pcaObj$x
 summary(pcaObj)
 
-PCA.side.df <- as.data.frame(pcaPoints.side[,1:3]) # First three PCA axes
-PCA.side.df$ind <- side.df$ind
-PCA.side.df$day <- side.df$day
-PCA.side.df$pop <- side.df$pop
+PCA.lateral.df <- as.data.frame(pcaPoints.lateral[,1:3]) # First three PCA axes
+PCA.lateral.df$ind <- lateral.df$ind
+PCA.lateral.df$day <- lateral.df$day
+PCA.lateral.df$pop <- lateral.df$pop
 
 ## Calculate population centroids by day
-centroids.side.12 <- aggregate(cbind(PC1, PC2) ~ day*pop, PCA.side.df, mean)
-centroids.side.23 <- aggregate(cbind(PC2, PC3) ~ day*pop, PCA.side.df, mean)
+centroids.lateral.12 <- aggregate(cbind(PC1, PC2) ~ day*pop, PCA.lateral.df, mean)
+centroids.lateral.23 <- aggregate(cbind(PC2, PC3) ~ day*pop, PCA.lateral.df, mean)
 
 ## PCA plot by population - overall
-ggplot(PCA.side.df, aes(x = PC1, y = PC2, color = as.factor(day))) +
+ggplot(PCA.lateral.df, aes(x = PC1, y = PC2, color = as.factor(day))) +
   geom_point(alpha = .2, aes(shape = pop)) +
-  geom_point(data = centroids.side.12, size = 5, aes(shape = pop)) +
+  geom_point(data = centroids.lateral.12, size = 5, aes(shape = pop)) +
   stat_ellipse(alpha = 0.4) +
-  geom_text_repel(data=centroids.side.12, fontface = "bold", aes(label=day), size=6, box.padding = .4) +
+  geom_text_repel(data=centroids.lateral.12, fontface = "bold", aes(label=day), size=6, box.padding = .4) +
   ylab("PC2 (21.3%)") +
   xlab("PC1 (33.2%)") +
   theme_classic(base_size = 18) +
   theme(legend.position = "none") +
   NULL
-
-#ggsave("./Ethanol Experiment/plots/pcaAll-side.pdf",
-#       width = 8, height = 6, units = "in")
 
 ## PCA plot by population - centroids only
-ggplot(PCA.side.df, aes(x = PC1, y = PC2)) +
-  geom_point(data = centroids.side.12, size = 5, aes(shape = pop)) +
-  geom_text_repel(data=centroids.side.12, fontface = "bold", aes(label=day), size=6, box.padding = .4) +
+ggplot(PCA.lateral.df, aes(x = PC1, y = PC2)) +
+  geom_point(data = centroids.lateral.12, size = 5, aes(shape = pop)) +
+  geom_text_repel(data=centroids.lateral.12, fontface = "bold", aes(label=day), size=6, box.padding = .4) +
   ylab("PC2 (21.3%)") +
   xlab("PC1 (33.2%)") +
   theme_classic(base_size = 18) +
   theme(legend.position = "none") +
   NULL
 
-#ggsave("./Ethanol Experiment/plots/pcaCentroids-side.pdf",
-#       width = 8, height = 6, units = "in")
-
 ## Incremental centroid distance changes
-CEC.cents <- centroids.side.12[1:18,]
-MSK.cents <- centroids.side.12[19:36,]
+CEC.cents <- centroids.lateral.12[1:18,]
+MSK.cents <- centroids.lateral.12[19:36,]
 
 CEC.centDist.tmp <- as.matrix(dist(CEC.cents[-1]))
 MSK.centDist.tmp <- as.matrix(dist(MSK.cents[-1]))
@@ -330,12 +332,12 @@ names(dist.df) <- c("cecDist", "mskDist")
 dist.df$timePeriod <- c(1, 2, 7, 14, 21, 28, 35, 42, 49, 56, 63, 70, 77, 84, 105, 126, 154)
 dist.df.tmp <- dist.df %>%
   mutate(
-    dayMove.side.cec = cecDist / (timePeriod - lag(timePeriod, default = 0)),
-    dayMove.side.msk = mskDist / (timePeriod - lag(timePeriod, default = 0))
+    dayMove.lateral.cec = cecDist / (timePeriod - lag(timePeriod, default = 0)),
+    dayMove.lateral.msk = mskDist / (timePeriod - lag(timePeriod, default = 0))
   ) %>% 
   select(-cecDist, -mskDist) %>% 
   left_join(dist.df.dorsal) %>% 
-  pivot_longer(cols = dayMove.side.cec:dayMove.side.msk,
+  pivot_longer(cols = dayMove.lateral.cec:dayMove.lateral.msk,
                values_to = "dayMove",
                names_to = "popView") %>% 
   separate(popView, into = c(NA, "view", "pop")) %>% 
@@ -351,7 +353,7 @@ dist.df.all <- as_tibble(c(dist.df.tmp$timePeriod, dist.df.tmp$timePeriod)) %>%
   distinct(value, dayMove, pop, view) %>% 
   mutate(view = recode(view, 
                        dorsal = "Dorsal",
-                       side = "Lateral")) 
+                       lateral = "Lateral")) 
 
 dist.df.all %>% 
   ggplot(aes(y = dayMove, x = value, shape = pop, linetype = pop)) +
@@ -366,23 +368,20 @@ dist.df.all %>%
   theme(legend.position = "none") +
   NULL
 
-#ggsave("./Ethanol Experiment/plots/dailyCentroidMovement.pdf",
-#      width = 7, height = 4, units = "in")
-
 ## Between-population centroid distance by day
-distCent.side <- as.data.frame(pointDistance(CEC.cents[, 3:4], 
+distCent.lateral <- as.data.frame(pointDistance(CEC.cents[, 3:4], 
                                         MSK.cents[, 3:4], 
                                         lonlat = FALSE))
-names(distCent.side) <- "distSide"
-distCent.side$timePeriod <- day.vec
+names(distCent.lateral) <- "distlateral"
+distCent.lateral$timePeriod <- day.vec
 
-distCent.all <- left_join(distCent.dorsal, distCent.side) %>% 
-  pivot_longer(cols = c("distDorsal", "distSide"),
+distCent.all <- left_join(distCent.dorsal, distCent.lateral) %>% 
+  pivot_longer(cols = c("distDorsal", "distlateral"),
                names_to = "view",
                values_to = "dist") %>% 
   mutate(view = recode(view, 
                        distDorsal = "Dorsal",
-                       distSide = "Lateral")) 
+                       distlateral = "Lateral")) 
 
 distCent.all %>% 
   ggplot(aes(y = dist, x = timePeriod)) +
@@ -396,11 +395,8 @@ distCent.all %>%
   theme_bw(base_size = 14) +
   NULL
 
-#ggsave("./Ethanol Experiment/plots/dailyDifference.pdf",
-#       width = 9, height = 5, units = "in")
-
 ## Between-population modeling per day 
-varPairs <- combn(unique(side.df$day), 2, simplify = TRUE) %>%
+varPairs <- combn(unique(lateral.df$day), 2, simplify = TRUE) %>%
   as.character() %>% as.data.frame() %>%
   group_by(grp = str_c('Column', rep(1:2, length.out = n()))) %>%
   mutate(rn = row_number()) %>%
@@ -410,21 +406,21 @@ varPairs <- combn(unique(side.df$day), 2, simplify = TRUE) %>%
   select(-rn)
 
 gobyRM <- function(pop1, pop2, day1, day2, ...) {
-  dat1 <- pcaPoints.side %>% 
+  dat1 <- pcaPoints.lateral %>% 
     as_tibble() %>% 
-    mutate(pop = side.df$pop,
-           ind = side.df$ind,
-           day = side.df$day) %>% 
+    mutate(pop = lateral.df$pop,
+           ind = lateral.df$ind,
+           day = lateral.df$day) %>% 
     filter(pop == pop1, day == day1) %>% 
     ungroup() %>% 
     select(-c(pop, ind, day)) %>% 
     select(PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8)
   
-  dat2 <- pcaPoints.side %>% 
+  dat2 <- pcaPoints.lateral %>% 
     as_tibble() %>% 
-    mutate(pop = side.df$pop,
-           ind = side.df$ind,
-           day = side.df$day) %>% 
+    mutate(pop = lateral.df$pop,
+           ind = lateral.df$ind,
+           day = lateral.df$day) %>% 
     filter(pop == pop2, day == day2) %>% 
     ungroup() %>% 
     select(-c(pop, ind, day)) %>% 
@@ -441,7 +437,18 @@ results <- tibble(1:nrow(varPairs)) %>%
   mutate(time1 = as.numeric(as.character(varPairs$Column1))) #%>% 
 # mutate(time2 = as.numeric(as.character(varPairs$Column1)))
 
-## Comparisons within MSK and MSK
+## Comparisons within CEC and MSK
+for(z in (1:nrow(varPairs))) {
+  RM.out <- gobyRM("CEC", "CEC", varPairs$Column1[z], varPairs$Column2[z])
+  results$EuclideanD.CEC[z] <- RM.out %>% as.data.frame %>% .[1,]
+  results$HotellingT2.CEC[z] <- RM.out %>% as.data.frame %>% .[2,]
+  results$Fstat.CEC[z] <- RM.out %>% as.data.frame %>% .[3,]
+  results$p_val.CEC[z] <- RM.out %>% as.data.frame %>% .[4,]
+  results$time1[z] <- varPairs$Column1[z]
+  results$time2[z] <- varPairs$Column2[z]
+}
+results.CEC <- results
+
 for(z in (1:nrow(varPairs))) {
   RM.out <- gobyRM("MSK", "MSK", varPairs$Column1[z], varPairs$Column2[z])
   results$EuclideanD.MSK[z] <- RM.out %>% as.data.frame %>% .[1,]
@@ -451,20 +458,19 @@ for(z in (1:nrow(varPairs))) {
   results$time1[z] <- varPairs$Column1[z]
   results$time2[z] <- varPairs$Column2[z]
 }
-
-results.CEC <- results
 results.MSK <- results
+
 results.CEC.MSK <- left_join(results.CEC, results.MSK) %>% 
   distinct(time1, .keep_all = TRUE) %>% 
   mutate(CEC.adj.p.value = p.adjust(p_val.CEC, method='fdr', n = nrow(.))) %>%
   mutate(MSK.adj.p.value = p.adjust(p_val.MSK, method='fdr', n = nrow(.)))
 
-write.csv(results.CEC.MSK, "./Ethanol Experiment/RM.withinpop-side.csv")
+write.csv(results.CEC.MSK, "./Ethanol Experiment/RM.withinpop-lateral.csv")
 
 
 ## Between-population modeling per day 
-array.side <- arrayspecs(side.df[,4:37], 17, 2)
-gdf <- geomorph.data.frame(coords = array.side, 
+array.lateral <- arrayspecs(lateral.df[,4:37], 17, 2)
+gdf <- geomorph.data.frame(coords = array.lateral, 
                            pop = dorsal.df$pop, 
                            day = dorsal.df$day)
 
@@ -492,16 +498,14 @@ for(z in day.vec) {
 stats <- stats %>% 
   mutate(qval = p.adjust(pval, method='fdr', n = nrow(.)))
 
-#write.csv(results, "./Ethanol Experiment/RM.acrosspops-side.csv")
-
 ## Between-population modeling per day 
 #### Question: How would a Procrustes ANOVA that compares that populations change across time?
-array.side <- arrayspecs(side.df[,4:37], 17, 2)
-gdf <- geomorph.data.frame(coords = array.side, 
-                           pop = side.df$pop, 
-                           day = side.df$day)
+array.lateral <- arrayspecs(lateral.df[,4:37], 17, 2)
+gdf <- geomorph.data.frame(coords = array.lateral, 
+                           pop = lateral.df$pop, 
+                           day = lateral.df$day)
 
-varPairs <- combn(unique(side.df$day), 2, simplify = TRUE) %>%
+varPairs <- combn(unique(lateral.df$day), 2, simplify = TRUE) %>%
   as.character() %>% as.data.frame() %>%
   group_by(grp = str_c('Column', rep(1:2, length.out = n()))) %>%
   mutate(rn = row_number()) %>%
@@ -510,10 +514,10 @@ varPairs <- combn(unique(side.df$day), 2, simplify = TRUE) %>%
   pivot_wider(names_from = grp, values_from = value) %>%
   select(-rn)
 
-varPairs.complete <- unique(side.df$day) %>%
+varPairs.complete <- unique(lateral.df$day) %>%
   as_tibble %>% 
   rename(Column1 = value) %>% 
-  mutate(Column2 = unique(side.df$day)) %>% 
+  mutate(Column2 = unique(lateral.df$day)) %>% 
   rbind(varPairs)
 
 stats <- as_tibble(varPairs.complete) %>% 

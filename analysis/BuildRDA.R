@@ -15,6 +15,10 @@ dat.lateral <- readland.tps("./extData/lateral-unbent.TPS",
 
 gobyData <- read.csv("./extData/ethanolExperimentData.csv")
 
+dorsalLinks <- read.csv("./extData/links.dorsal.csv")
+lateralLinks <- read.csv("./extData/links.lateral.csv")
+
+
 
 ### Save as a .rda file ###
-save(dat.dorsal, dat.lateral, gobyData, file = "./data/gobyPreservation.rda")
+save(dat.dorsal, dat.lateral, gobyData, dorsalLinks, lateralLinks, file = "./data/gobyPreservation.rda")

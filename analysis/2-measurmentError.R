@@ -5,7 +5,9 @@
 
 library(geomorph)
 library(raster)
+library(gobyPreservation)
 library(tidyverse)
+data("gobyPreservation")
 
 
 ######## Nested ANOVA approach #########
@@ -49,40 +51,40 @@ Nested_ANOVA.dorsal <- procD.lm(coords ~ pop/ind/day/rep, data = gdf.dorsal, see
 summary(Nested_ANOVA.dorsal)
 
 
-######## Side ########
+######## lateral ########
 ### Read data from fully appended tps file (created in TPSutil)
-dat.side <- dat.side[c(1:17),,]
+dat.lateral <- dat.lateral[c(1:17),,]
 
 ### Set data up for analysis ###
 ## Set up geomorph dataframe ##
-proc.side <- gpagen(dat.side)
+proc.lateral <- gpagen(dat.lateral)
 
-gdf.side <- geomorph.data.frame(proc.side,
+gdf.lateral <- geomorph.data.frame(proc.lateral,
                                   pop = pop,
                                   ind = ind,
                                   rep = rep,
                                   day = day,
-                                  shape = proc.side$coords)
+                                  shape = proc.lateral$coords)
 
 ## Remove allometry-associated variation
 fit.simple.allo <- procD.lm(coords ~ log(Csize), 
-                            data = gdf.side, print.progress = FALSE)
+                            data = gdf.lateral, print.progress = FALSE)
 shape.resid <- arrayspecs(fit.simple.allo$residuals,
-                          p=dim(gdf.side$coords)[1], k=dim(gdf.side$coords)[2]) # allometry-adjusted residuals
-adj.shape <- shape.resid + array(mshape(gdf.side$coords), dim(shape.resid)) # Size adjusted shapes
-proc.side <- gpagen(adj.shape)
+                          p=dim(gdf.lateral$coords)[1], k=dim(gdf.lateral$coords)[2]) # allometry-adjusted residuals
+adj.shape <- shape.resid + array(mshape(gdf.lateral$coords), dim(shape.resid)) # Size adjusted shapes
+proc.lateral <- gpagen(adj.shape)
 
 
-gdf.side <- geomorph.data.frame(proc.side,
+gdf.lateral <- geomorph.data.frame(proc.lateral,
                                 pop = pop,
                                 ind = ind,
                                 rep = rep,
                                 day = day,
-                                shape = proc.side$coords)
+                                shape = proc.lateral$coords)
 
 ## Use ANOVA to quantify measurement error
-Nested_ANOVA.side <- procD.lm(coords ~ pop/ind/day/rep, data = gdf.side, seed = NULL, RRPP = TRUE, iter=999)
-summary(Nested_ANOVA.side)
+Nested_ANOVA.lateral <- procD.lm(coords ~ pop/ind/day/rep, data = gdf.lateral, seed = NULL, RRPP = TRUE, iter=999)
+summary(Nested_ANOVA.lateral)
 
 
 
@@ -113,22 +115,22 @@ centDist.dorsal.tib <-
   summarize(meanDistCent.dorsal = mean(distCent))
 
 
-#### Side ####
+#### lateral ####
 ### Principal components analysis ###
-pc.side.df <- data.frame(two.d.array(proc.side$coords))
-pcaPoints.side <- prcomp(pc.side.df)$x
+pc.lateral.df <- data.frame(two.d.array(proc.lateral$coords))
+pcaPoints.lateral <- prcomp(pc.lateral.df)$x
 
-PCA.side.df <- as.data.frame(pcaPoints.side[,1:3]) # First three PCA axes
-PCA.side.df$ind <- ind
-PCA.side.df$rep <- rep
-PCA.side.df$day <- day
-PCA.side.df$pop <- pop
+PCA.lateral.df <- as.data.frame(pcaPoints.lateral[,1:3]) # First three PCA axes
+PCA.lateral.df$ind <- ind
+PCA.lateral.df$rep <- rep
+PCA.lateral.df$day <- day
+PCA.lateral.df$pop <- pop
 
 ## Calculate population centroids by day
-repCentroids <- aggregate(cbind(PC1, PC2) ~ day*ind*pop, PCA.side.df, mean)
+repCentroids <- aggregate(cbind(PC1, PC2) ~ day*ind*pop, PCA.lateral.df, mean)
 
-centDist.side.tib <-
-  left_join(repCentroids, PCA.side.df, by = c("ind", "day", "pop")) %>%
+centDist.lateral.tib <-
+  left_join(repCentroids, PCA.lateral.df, by = c("ind", "day", "pop")) %>%
   rename(PC1.cent = PC1.x,
          PC2.cent = PC2.x,
          PC1 = PC1.y,
@@ -136,16 +138,16 @@ centDist.side.tib <-
   select(day, ind, rep, pop, PC1.cent, PC2.cent, PC1, PC2) %>%
   mutate(distCent = pointDistance(.[, 5:6], .[, 7:8], lonlat = FALSE)) %>%
   group_by(day, ind, pop) %>%
-  summarize(meanDistCent.side = mean(distCent))
+  summarize(meanDistCent.lateral = mean(distCent))
 
 centDist.all.tib <- centDist.dorsal.tib %>% 
-  left_join(centDist.side.tib) %>% 
-  pivot_longer(cols = meanDistCent.dorsal:meanDistCent.side,
+  left_join(centDist.lateral.tib) %>% 
+  pivot_longer(cols = meanDistCent.dorsal:meanDistCent.lateral,
                values_to = "distCent",
                names_to = "perspective") %>% 
   mutate(perspective = recode(perspective, 
                               meanDistCent.dorsal = "Dorsal",
-                              meanDistCent.side = "Lateral")) %>% 
+                              meanDistCent.lateral = "Lateral")) %>% 
   mutate(perspective = as.factor(perspective))
   
 centDist.all.tib %>% 
@@ -156,5 +158,4 @@ centDist.all.tib %>%
   facet_grid(rows = vars(perspective)) +
   theme_bw()  
 
-ggsave("./Ethanol Experiment/plots/errorDistribution.pdf",
-       width = 7, height = 6, units = "in")
+

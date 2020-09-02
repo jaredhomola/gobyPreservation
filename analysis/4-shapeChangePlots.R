@@ -7,7 +7,9 @@ library(geomorph)
 library(ggrepel)
 library(plyr)
 library(stringi)
+library(gobyPreservation)
 library(tidyverse)
+data("gobyPreservation")
 
 ## Establish factors
 pop = as.factor(c(rep(c("CEC"), 1620), rep(c("MSK"), 1620)))
@@ -16,12 +18,6 @@ rep = as.factor(c(rep(1:3, each = 540), rep(1:3, each = 540)))
 day = as.factor(c(rep(rep(c(0, 1, 2, 7, 14, 21, 28, 35, 42, 49, 56, 63, 70, 77, 84, 105, 126, 154), times = 60), times = 3)))
 
 ######## Dorsal ########
-### Read data from fully appended tps file (created in TPSutil)
-dat.dorsal <-
-  readland.tps("./Ethanol Experiment/Experiment Photos/Experiment-photos-dorsal/individual-dorsal-appended/individual-appended-dorsal-all.TPS",
-               specID = "ID",
-               readcurves = FALSE)
-
 ### Perform Procrutes transformation and construct data frame ###
 proc.dorsal <- gpagen(dat.dorsal)
 gdf.dorsal <- geomorph.data.frame(proc.dorsal, shape = proc.dorsal$coords) 
@@ -69,51 +65,41 @@ mean.msk154 <- mshape(gdf.popDay$MSK154)
 mean.cec <- mshape(gdf.pop$CEC)
 mean.msk <- mshape(gdf.pop$MSK)
 
-## Define links
-#links.dorsal <- define.links(mean.cec0)
-#write.csv(links.dorsal, "links.dorsal2.csv")
-links.dorsal <- read.csv("links.dorsal2.csv")[,2:3]
-
 ## Population through time (First listed is gray, second listed is black)
-plotRefToTarget(mean.cec0, mean.msk0, method="points", links = links.dorsal, mag = 2) 
-plotRefToTarget(mean.cec14, mean.msk14, method="points", links = links.dorsal, mag = 2) 
-plotRefToTarget(mean.cec154, mean.msk154, method="points", links = links.dorsal, mag = 2) 
+plotRefToTarget(mean.cec0, mean.msk0, method="points", links = dorsalLinks[,2:3], mag = 2) 
+plotRefToTarget(mean.cec14, mean.msk14, method="points", links = dorsalLinks[,2:3], mag = 2) 
+plotRefToTarget(mean.cec154, mean.msk154, method="points", links = dorsalLinks[,2:3], mag = 2) 
 
 ## Within-population through time (First listed is gray, second listed is black)
-plotRefToTarget(mean.cec0, mean.cec14, method="points", links = links.dorsal, mag = 1) 
-plotRefToTarget(mean.cec14, mean.cec154, method="points", links = links.dorsal, mag = 1) 
-plotRefToTarget(mean.cec0, mean.cec154, method="points", links = links.dorsal, mag = 1) 
-plotRefToTarget(mean.msk0, mean.msk14, method="points", links = links.dorsal, mag = 1)
-plotRefToTarget(mean.msk14, mean.msk154, method="points", links = links.dorsal, mag = 1)
-plotRefToTarget(mean.msk0, mean.msk154, method="points", links = links.dorsal, mag = 1)
+plotRefToTarget(mean.cec0, mean.cec14, method="points", links = dorsalLinks[,2:3], mag = 1) 
+plotRefToTarget(mean.cec14, mean.cec154, method="points", links = dorsalLinks[,2:3], mag = 1) 
+plotRefToTarget(mean.cec0, mean.cec154, method="points", links = dorsalLinks[,2:3], mag = 1) 
+plotRefToTarget(mean.msk0, mean.msk14, method="points", links = dorsalLinks[,2:3], mag = 1)
+plotRefToTarget(mean.msk14, mean.msk154, method="points", links = dorsalLinks[,2:3], mag = 1)
+plotRefToTarget(mean.msk0, mean.msk154, method="points", links = dorsalLinks[,2:3], mag = 1)
 
 ## Overall between population difference ##
-plotRefToTarget(mean.cec, mean.msk, method="points", links = links.dorsal, mag = 2)
+plotRefToTarget(mean.cec, mean.msk, method="points", links = dorsalLinks[,2:3], mag = 2)
 
 
 
 
 #### LATERAL #####
-dat.side <-
-  readland.tps("./Ethanol Experiment/Experiment Photos/Experiment-photos-side-UNBEND/unbentAll.TPS",
-               specID = "ID",
-               readcurves = FALSE)
-
-dat.side <- dat.side[c(1:17),,]
+dat.lateral <- dat.lateral[c(1:17),,]
 
 ### Perform Procrutes transformation and construct data frame ###
-proc.side <- gpagen(dat.side)
-gdf.side <- geomorph.data.frame(proc.side, shape = proc.side$coords) 
+proc.lateral <- gpagen(dat.lateral)
+gdf.lateral <- geomorph.data.frame(proc.lateral, shape = proc.lateral$coords) 
 
 ## Perform Generalized Procrustes transformation and correct for allometric relationships ##
 fit.simple.allo <- procD.lm(coords ~ log(Csize), 
-                            data = gdf.side, print.progress = FALSE)
+                            data = gdf.lateral, print.progress = FALSE)
 shape.resid <- arrayspecs(fit.simple.allo$residuals,
-                          p=dim(gdf.side$coords)[1], k=dim(gdf.side$coords)[2]) # allometry-adjusted residuals
-adj.shape <- shape.resid + array(mshape(gdf.side$coords), dim(shape.resid)) # Size adjusted shapes
-proc.side <- gpagen(adj.shape)
+                          p=dim(gdf.lateral$coords)[1], k=dim(gdf.lateral$coords)[2]) # allometry-adjusted residuals
+adj.shape <- shape.resid + array(mshape(gdf.lateral$coords), dim(shape.resid)) # Size adjusted shapes
+proc.lateral <- gpagen(adj.shape)
 
-side.df <- data.frame(two.d.array(proc.side$coords)) %>% 
+lateral.df <- data.frame(two.d.array(proc.lateral$coords)) %>% 
   mutate(pop = pop, 
          ind = ind, 
          rep = rep, 
@@ -121,20 +107,20 @@ side.df <- data.frame(two.d.array(proc.side$coords)) %>%
   group_by(pop, ind, day) %>% 
   summarize_if(is.numeric, funs(mean))
 
-array.side <- arrayspecs(side.df[,4:37], 
+array.lateral <- arrayspecs(lateral.df[,4:37], 
                            17, 
                            2)
 
-gdf.side <- geomorph.data.frame(shape = array.side,
-                                  pop = side.df$pop,
-                                  ind = side.df$ind,
-                                  day = side.df$day) 
+gdf.lateral <- geomorph.data.frame(shape = array.lateral,
+                                  pop = lateral.df$pop,
+                                  ind = lateral.df$ind,
+                                  day = lateral.df$day) 
 
 ### Subset by pop and day
-group <- factor(paste0(gdf.side$pop, gdf.side$day))
-gdf.popDay <- coords.subset(gdf.side$shape, group = group)
-pop <- factor(gdf.side$pop)
-gdf.pop <- coords.subset(gdf.side$shape, group = pop)
+group <- factor(paste0(gdf.lateral$pop, gdf.lateral$day))
+gdf.popDay <- coords.subset(gdf.lateral$shape, group = group)
+pop <- factor(gdf.lateral$pop)
+gdf.pop <- coords.subset(gdf.lateral$shape, group = pop)
 
 ### Calculate mean shapes
 mean.cec0 <- mshape(gdf.popDay$CEC0)
@@ -147,24 +133,19 @@ mean.msk154 <- mshape(gdf.popDay$MSK154)
 mean.cec <- mshape(gdf.pop$CEC)
 mean.msk <- mshape(gdf.pop$MSK)
 
-## Define links
-#links.side <- define.links(mean.cec0)
-#write.csv(links.side, "links.side.csv")
-links.side <- read.csv("links.side.csv")[,2:3]
-
 
 ## Population through time (First listed is gray, second listed is black)
-plotRefToTarget(mean.cec0, mean.msk0, method="points", links = links.side, mag = 2) 
-plotRefToTarget(mean.cec14, mean.msk14, method="points", links = links.side, mag = 2) 
-plotRefToTarget(mean.cec154, mean.msk154, method="points", links = links.side, mag = 2) 
+plotRefToTarget(mean.cec0, mean.msk0, method="points", links = lateralLinks[,2:3], mag = 2) 
+plotRefToTarget(mean.cec14, mean.msk14, method="points", links = lateralLinks[,2:3], mag = 2) 
+plotRefToTarget(mean.cec154, mean.msk154, method="points", links = lateralLinks[,2:3], mag = 2) 
 
 ## Within-population through time (First listed is gray, second listed is black)
-plotRefToTarget(mean.cec0, mean.cec14, method="points", links = links.side, mag = 1) 
-plotRefToTarget(mean.cec14, mean.cec154, method="points", links = links.side, mag = 1) 
-plotRefToTarget(mean.cec0, mean.cec154, method="points", links = links.side, mag = 1) 
-plotRefToTarget(mean.msk0, mean.msk14, method="points", links = links.side, mag = 1)
-plotRefToTarget(mean.msk14, mean.msk154, method="points", links = links.side, mag = 1)
-plotRefToTarget(mean.msk0, mean.msk154, method="points", links = links.side, mag = 1)
+plotRefToTarget(mean.cec0, mean.cec14, method="points", links = lateralLinks[,2:3], mag = 1) 
+plotRefToTarget(mean.cec14, mean.cec154, method="points", links = lateralLinks[,2:3], mag = 1) 
+plotRefToTarget(mean.cec0, mean.cec154, method="points", links = lateralLinks[,2:3], mag = 1) 
+plotRefToTarget(mean.msk0, mean.msk14, method="points", links = lateralLinks[,2:3], mag = 1)
+plotRefToTarget(mean.msk14, mean.msk154, method="points", links = lateralLinks[,2:3], mag = 1)
+plotRefToTarget(mean.msk0, mean.msk154, method="points", links = lateralLinks[,2:3], mag = 1)
 
 ## Overall between population difference ##
-plotRefToTarget(mean.cec, mean.msk, method="points", links = links.side, mag = 2)
+plotRefToTarget(mean.cec, mean.msk, method="points", links = lateralLinks[,2:3], mag = 2)

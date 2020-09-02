@@ -1,13 +1,15 @@
 #################################################################
 ######       Ethanol experiment morphometric analyses      ######
 ######################     June  2020     #######################
-##################################################################Bailey's setwd
-
+#################################################################
 
 library(geomorph)
 library(Morpho)
 library(shapes)
+library(gobyPreservation)
 library(tidyverse)
+data("gobyPreservation")
+
 
 ## Establish factors
 pop = as.factor(c(rep(c("CEC"), 1620), rep(c("MSK"), 1620)))
@@ -74,27 +76,21 @@ for(z in unique(day.vec)) {
 
 
 ### Lateral ####
-
-dat.side <-
-  readland.tps("./Ethanol Experiment/Experiment Photos/Experiment-photos-side-UNBEND/unbentAll.TPS",
-               specID = "ID",
-               readcurves = FALSE)
-
-dat.side <- dat.side[c(1:17),,]
+dat.lateral <- dat.lateral[c(1:17),,]
 
 ## Perform Generalized Procrustes transformation
-proc.side <- gpagen(dat.side)
+proc.lateral <- gpagen(dat.lateral)
 
-gdf.side <- geomorph.data.frame(proc.side,
-                                  shape = proc.side$coords) 
+gdf.lateral <- geomorph.data.frame(proc.lateral,
+                                  shape = proc.lateral$coords) 
 
 fit.simple.allo <- procD.lm(coords ~ log(Csize), 
-                            data = gdf.side, print.progress = FALSE)
+                            data = gdf.lateral, print.progress = FALSE)
 shape.resid <- arrayspecs(fit.simple.allo$residuals,
-                          p=dim(gdf.side$coords)[1], k=dim(gdf.side$coords)[2]) # allometry-adjusted residuals
-adj.shape <- shape.resid + array(mshape(gdf.side$coords), dim(shape.resid)) # Size adjusted shapes
+                          p=dim(gdf.lateral$coords)[1], k=dim(gdf.lateral$coords)[2]) # allometry-adjusted residuals
+adj.shape <- shape.resid + array(mshape(gdf.lateral$coords), dim(shape.resid)) # Size adjusted shapes
 
-side.df <- data.frame(two.d.array(adj.shape)) %>% 
+lateral.df <- data.frame(two.d.array(adj.shape)) %>% 
   mutate(pop = pop, 
          ind = ind, 
          rep = rep, 
@@ -102,12 +98,12 @@ side.df <- data.frame(two.d.array(adj.shape)) %>%
   group_by(pop, ind, day) %>% 
   summarize_if(is.numeric, funs(mean))
 
-array.side <- arrayspecs(side.df[,4:37], 17, 2)
+array.lateral <- arrayspecs(lateral.df[,4:37], 17, 2)
 pop.daySub <- as.factor(c(rep("CEC", 30), rep("MSK", 30)))
 
 ## Function to perform test ##
 gobyCVA <- function(dayTarget, ...) {
-  dat.day <- array.side[,,side.df$day == dayTarget]
+  dat.day <- array.lateral[,,lateral.df$day == dayTarget]
   proc.day <- procSym(dat.day)
   CVA(proc.day$orpdata, pop.daySub, rounds = 10000, cv=TRUE)
 }
@@ -148,8 +144,3 @@ results.all %>%
   ylab("CVA reassignment rate") +
   facet_grid(rows = vars(view)) +
   theme_bw(base_size = 18)
-
-
-ggsave("./Ethanol Experiment/plots/CVA.pdf",
-           width = 9, height = 5, units = "in")
-

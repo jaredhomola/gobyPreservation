@@ -7,14 +7,18 @@
 library(nlme)
 library(lmtest)
 library(geomorph)
+library(segmented)
+library(gobyPreservation)
 library(tidyverse)
-
+data("gobyPreservation")
 
 #establish factors
 pop = as.factor(c(rep(c("CEC"), 1620), rep(c("MSK"), 1620)))
 ind = as.factor(c(rep(1:30, each = 18, times = 3), rep(1:30, each = 18, times = 3)))
 rep = as.factor(c(rep(1:3, each = 540), rep(1:3, each = 540)))
 day = as.factor(c(rep(rep(c(0, 1, 2, 7, 14, 21, 28, 35, 42, 49, 56, 63, 70, 77, 84, 105, 126, 154), times = 60), times = 3)))
+
+
 
 ### Set up dataframe, including adding CSize
 ## Dorsal CSize calculation
@@ -29,7 +33,7 @@ cSizes.dorsal <- data.frame(keyName=names(proc.dorsal$Csize), value=proc.dorsal$
   summarize(meanCsizeDorsal = mean(value))
 
 ## Side CSize calculation
-proc.side <- gpagen(dat.side)
+proc.side <- gpagen(dat.lateral)
 
 # Take mean of 3 reps
 cSizes.side <- data.frame(keyName=names(proc.side$Csize), value=proc.side$Csize, row.names=NULL) %>% 
@@ -42,7 +46,7 @@ cSizes.side <- data.frame(keyName=names(proc.side$Csize), value=proc.side$Csize,
 
 
 ### Assembly overall dataframe
-dat <- read.csv("Ethanol Experiment/ethanolExperimentData.csv") %>% 
+dat <- gobyData %>% 
   separate(sampleName,c("time", "pop", "ind")) %>% 
   as_tibble() %>% 
   mutate(pop = recode(pop, "MSK02" = "MSK", "CEC01" = "CEC")) %>% 
@@ -85,29 +89,11 @@ ggplot(dat, aes(dayMeasure, forkLength, group = pop)) +
         legend.text=element_text(size=18),
         legend.position = "bottom")
 
-ggsave("./Ethanol experiment/Report/standardLength.png", width = 10, height = 6)
-
-
 ### Mass
 ggplot(dat, aes(dayMeasure, mass, group = pop)) +
   geom_point(aes(color = pop), alpha = 0.2) +
   geom_smooth(method = "auto", aes(color = pop)) + #The "span" variable will change the way smoothing is performed.
   ylab("Mass (g)") + #"ylab" lets you rename the y axis label
-  xlab("Days post-preservation") +
-  scale_color_manual(labels = c("Cedar Creek", "Lake Michigan"), values = c("blue", "red")) + #Change legend names
-  guides(color = guide_legend(override.aes = list(fill=NA))) + #Remove gray background from legend symbols
-  theme_classic(base_size = 18) + #Changes overall font sizes
-  theme(legend.title = element_blank(),  #Removes legend title
-        legend.text=element_text(size=18),
-        legend.position = "bottom")  #Increases font size for legend
-
-
-### Create Regression plot ####
-### meanCsizeDorsal
-ggplot(dat, aes(dayMeasure, meanCsizeSide, group = pop)) +
-  geom_point(aes(shape = pop), alpha = 0.2) +
-  geom_smooth(method = "auto", aes(lty = pop)) + #The "span" variable will change the way smoothing is performed.
-  ylab("meanCsizeSide") + #"ylab" lets you rename the y axis label
   xlab("Days post-preservation") +
   scale_color_manual(labels = c("Cedar Creek", "Lake Michigan"), values = c("blue", "red")) + #Change legend names
   guides(color = guide_legend(override.aes = list(fill=NA))) + #Remove gray background from legend symbols
@@ -852,8 +838,6 @@ summary(meanCsizeSide.mod.24)
 
 #### Segmented regression ####
 ## Mass
-library(segmented)
-
 mass.lm <- lm(log(mass) ~ dayMeasure + pop + dayMeasure*pop, data = dat) 
 mass.seg <- segmented(mass.lm, 
                     seg.Z = ~ dayMeasure, 
@@ -873,7 +857,7 @@ summary(sl.seg)
 sl.seg$psi
 
 ## Dorsal centroid size
-meanCsizedorsal.lm <- lm(log(meanCsizedorsal) ~ dayMeasure + pop + dayMeasure*pop, data = dat) 
+meanCsizedorsal.lm <- lm(log(meanCsizeDorsal) ~ dayMeasure + pop + dayMeasure*pop, data = dat) 
 meanCsizedorsal.seg <- segmented(meanCsizedorsal.lm, 
                     seg.Z = ~ dayMeasure, 
                     npsi = 1)
