@@ -5,8 +5,7 @@ library(tidyverse)
 library(ggsn)
 library(ggrepel)
 
-# Set Jared's Google API Key
-register_google(key = "AIzaSyDNBsBTypZFWTPTKfyyE9Ul_6lPg47idzo")
+# Need to create a free API key
 
 # Create reference tibbles
 samplingSites.tib <- tibble(
