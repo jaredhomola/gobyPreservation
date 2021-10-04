@@ -1,6 +1,6 @@
 ---
 title: "gobyPreservation"
-date: "Sept 2, 2020"
+date: "Oct 4, 2021"
 output:
   md_document: default
 html_document: default
@@ -11,7 +11,7 @@ html_document: default
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ## gobyPreservation  
-gobyPreservation is a research compendium that brings together the data and analyses associated with Lorencen et al. (in review), Geometric Morphometric Analysis Quantifies Nonlinear Temporal Effects of Ethanol Preservation on Round Goby Neogobius melanostomus Anatomical Traits. R scripts are provided in analysis/, human-readable data in extData/, and R-readable data in an .rda file in data/. 
+gobyPreservation is a research compendium that brings together the data and analyses associated with Lorencen et al. (in review), Quantifying Nonlinear Temporal Effects of Ethanol Preservation on Round Goby (Neogobius melanostomus) Anatomical Traits. R scripts are provided in analysis/, human-readable data in extData/, and R-readable data in an .rda file in data/. 
 
 Note: All analyses originally conducted and package built using R version 4.0.0 in Windows 10
 
@@ -34,7 +34,7 @@ jaredhomola20@gmail.com
 www.jaredhomola.com  
 
 
-#### Copyright (c) 2020 The Authors
+#### Copyright (c) 2021 The Authors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
